@@ -158,118 +158,50 @@
   </div>
 </div>
 
-<!-- ===================== GitHub 저장소 연동 (Claude 저장소 대체) ===================== -->
+<!-- ===================== Firebase 연동 (Claude 저장소 대체) ===================== -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <script>
-  // ▼▼▼ 여기 세 값을 채워주세요 ▼▼▼
-  const GITHUB_OWNER  = "dksxoals0824-glitch";       // 예: wevape
-  const GITHUB_REPO   = "wevape-sales-report";          // 예: wevape-sales-report
-  const GITHUB_TOKEN  = "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";        // 이 저장소 전용 Contents 읽기/쓰기 권한만 있는 토큰
-  const GITHUB_BRANCH = "main";
+  // ▼▼▼ 여기에 Firebase 콘솔에서 받은 firebaseConfig 값을 그대로 붙여넣으세요 ▼▼▼
+  const firebaseConfig = {
+    apiKey: "AIzaSyCzlKAG7sBRFo532csNh_4FV80zOKm_JVI",
+    authDomain: "wevape-sales.firebaseapp.com",
+    projectId: "wevape-sales",
+    storageBucket: "wevape-sales.firebasestorage.app",
+    messagingSenderId: "946833332360",
+    appId: "1:946833332360:web:c918c061e94c97f8f4a73d"
+  };
   // ▲▲▲ 여기까지 ▲▲▲
 
-  const GH_API = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents`;
-  function ghHeaders(){
-    return {
-      "Authorization": "Bearer " + GITHUB_TOKEN,
-      "Accept": "application/vnd.github+json"
-    };
-  }
-  function utf8ToBase64(str){
-    return btoa(unescape(encodeURIComponent(str)));
-  }
-  function base64ToUtf8(b64){
-    return decodeURIComponent(escape(atob(b64.replace(/\n/g,''))));
-  }
-  // key 형식: "report:{date}:{store}" -> 파일 경로: data/reports/{date}/{store}.json
-  function keyToPath(key){
-    const parts = key.split(':'); // ['report', date, store]
-    return `data/reports/${parts[1]}/${parts[2]}.json`;
-  }
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
   window.storage = {
     async get(key, shared){
-      const path = keyToPath(key);
-      const res = await fetch(`${GH_API}/${path}?ref=${GITHUB_BRANCH}`, { headers: ghHeaders() });
-      if(res.status === 404) throw new Error('not found: '+key);
-      if(!res.ok) throw new Error('GitHub read failed: '+res.status);
-      const json = await res.json();
-      return { key, value: base64ToUtf8(json.content), shared };
+      const doc = await db.collection('reports').doc(key).get();
+      if(!doc.exists) throw new Error('not found: '+key);
+      return { key, value: doc.data().value, shared };
     },
-
     async set(key, value, shared){
-      const path = keyToPath(key);
-      let sha = undefined;
-      const existing = await fetch(`${GH_API}/${path}?ref=${GITHUB_BRANCH}`, { headers: ghHeaders() });
-      if(existing.ok){ sha = (await existing.json()).sha; }
-
-      const res = await fetch(`${GH_API}/${path}`, {
-        method: "PUT",
-        headers: { ...ghHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: `update ${key}`,
-          content: utf8ToBase64(value),
-          branch: GITHUB_BRANCH,
-          ...(sha ? { sha } : {})
-        })
-      });
-      if(!res.ok) throw new Error('GitHub write failed: '+res.status);
+      await db.collection('reports').doc(key).set({ value, updatedAt: Date.now() });
       return { key, value, shared };
     },
-
     async delete(key, shared){
-      const path = keyToPath(key);
-      const existing = await fetch(`${GH_API}/${path}?ref=${GITHUB_BRANCH}`, { headers: ghHeaders() });
-      if(!existing.ok) throw new Error('not found: '+key);
-      const sha = (await existing.json()).sha;
-      const res = await fetch(`${GH_API}/${path}`, {
-        method: "DELETE",
-        headers: { ...ghHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ message: `delete ${key}`, sha, branch: GITHUB_BRANCH })
-      });
-      if(!res.ok) throw new Error('GitHub delete failed: '+res.status);
+      await db.collection('reports').doc(key).delete();
       return { key, deleted: true, shared };
     },
-
-    // prefix는 "report:" 또는 "report:{date}:" 형태만 지원
     async list(prefix, shared){
-      const datePart = (prefix.match(/^report:([^:]+):?$/) || [])[1];
-      const keys = [];
-      try{
-        if(datePart){
-          // 특정 날짜 폴더 안의 파일들 나열
-          const res = await fetch(`${GH_API}/data/reports/${datePart}?ref=${GITHUB_BRANCH}`, { headers: ghHeaders() });
-          if(res.ok){
-            const files = await res.json();
-            files.forEach(f=>{
-              if(f.type==='file' && f.name.endsWith('.json')){
-                keys.push(`report:${datePart}:${f.name.replace(/\.json$/,'')}`);
-              }
-            });
-          }
-        } else {
-          // 날짜 폴더 전체 나열 후, 폴더마다 파일 나열
-          const res = await fetch(`${GH_API}/data/reports?ref=${GITHUB_BRANCH}`, { headers: ghHeaders() });
-          if(res.ok){
-            const dateDirs = (await res.json()).filter(f=>f.type==='dir');
-            for(const d of dateDirs){
-              const sub = await fetch(`${GH_API}/data/reports/${d.name}?ref=${GITHUB_BRANCH}`, { headers: ghHeaders() });
-              if(sub.ok){
-                const files = await sub.json();
-                files.forEach(f=>{
-                  if(f.type==='file' && f.name.endsWith('.json')){
-                    keys.push(`report:${d.name}:${f.name.replace(/\.json$/,'')}`);
-                  }
-                });
-              }
-            }
-          }
-        }
-      }catch(e){ console.error('GitHub list error', e); }
-      return { keys, prefix, shared };
+      let q = db.collection('reports');
+      if(prefix){
+        q = q.where(firebase.firestore.FieldPath.documentId(), '>=', prefix)
+             .where(firebase.firestore.FieldPath.documentId(), '<', prefix + '\uf8ff');
+      }
+      const snap = await q.get();
+      return { keys: snap.docs.map(d=>d.id), prefix, shared };
     }
   };
 </script>
-<!-- ===================== GitHub 저장소 연동 끝 ===================== -->
+<!-- ===================== Firebase 연동 끝 ===================== -->
 
 <script>
 
