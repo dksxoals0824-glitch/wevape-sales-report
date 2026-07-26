@@ -58,6 +58,7 @@
   .store-list .amt{font-family:var(--mono);color:var(--ink-soft);}
   .missing-tag{display:inline-block;background:#FBEAEA;color:var(--bad);border-radius:6px;padding:2px 8px;font-size:11.5px;margin:2px 4px 0 0;}
   .dup-tag{display:inline-block;background:#FFF0D6;color:#8A5A00;border-radius:6px;padding:2px 8px;font-size:11.5px;margin:2px 4px 0 0;}
+  .all-done{background:#EAF7EE;color:var(--good);border-radius:9px;padding:10px 12px;font-size:13px;font-weight:600;}
   .progress{font-size:12.5px;color:var(--ink-soft);margin-bottom:10px;}
 
   .receipt{background:#FAFAF7;border:1px dashed #C9C4B4;border-radius:8px;padding:16px;font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;color:var(--ink);}
@@ -116,6 +117,7 @@
       <div class="parse-warn" id="parseWarn">보고 텍스트를 인식하지 못했어요. "■ 매장명" 다음 줄에 "· 근무일 :" 형식이 있는지 확인해주세요.</div>
       <div class="warn-box" id="dateWarn" style="display:none;"></div>
       <div class="warn-box" id="mismatchWarn" style="display:none;"></div>
+      <div class="warn-box" id="dupWarn" style="display:none;"></div>
       <div class="calc-box" id="previewBox" style="display:none;">
         <span id="previewLabel">-</span><b id="previewTotal">0원</b>
       </div>
@@ -320,12 +322,14 @@ async function submitReport(){
   const previewBox = document.getElementById('previewBox');
   const dateWarn = document.getElementById('dateWarn');
   const mismatchWarn = document.getElementById('mismatchWarn');
+  const dupWarn = document.getElementById('dupWarn');
   parseWarn.style.display='none';
   previewBox.style.display='none';
   dateWarn.style.display='none';
   dateWarn.classList.remove('error-box');
   mismatchWarn.style.display='none';
   mismatchWarn.classList.remove('error-box');
+  dupWarn.style.display='none';
 
   const parsed = parseReportText(text);
   if(!parsed){
@@ -362,6 +366,13 @@ async function submitReport(){
     const existing = await window.storage.get(key, true);
     if(existing){ history = parseHistory(existing.value); }
   }catch(e){ /* no existing entry */ }
+
+  if(history.length > 0){
+    const prevTotal = history[history.length-1].total;
+    dupWarn.innerHTML = `⚠ <b>${store}</b>의 <b>${date}</b> 보고가 이미 제출되어 있어요 (총액 ${won(prevTotal)}). 중복 입력이라 저장하지 않았어요. 수정이 필요하면 "전체 현황·종합" 탭에서 기존 항목을 먼저 삭제한 뒤 다시 제출해주세요.`;
+    dupWarn.style.display='block';
+    return;
+  }
 
   const payload = {...parsed, storeName:store, date, submittedAt: Date.now()};
   history.push(payload);
@@ -470,6 +481,8 @@ async function loadAggregate(){
     if(missing.length){
       missingBox.innerHTML = '<div style="font-size:12px;color:var(--ink-soft);margin-bottom:4px;">미제출 매장</div>' +
         missing.map(n=>`<span class="missing-tag">${n}</span>`).join('');
+    } else if(entries.length > 0){
+      missingBox.innerHTML = '<div class="all-done">✓ 전 매장 제출 완료</div>';
     }
 
     const duplicates = entries.filter(e=>e._dupCount>1);
