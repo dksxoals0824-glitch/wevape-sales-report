@@ -89,6 +89,7 @@
   <div class="tabs">
     <button class="tab-btn active" id="tabBtn1" onclick="switchTab(1)">매장 보고 입력</button>
     <button class="tab-btn" id="tabBtn2" onclick="switchTab(2)">전체 현황 · 종합</button>
+    <button class="tab-btn" id="tabBtn3" onclick="switchTab(3)">무니코틴 문의 취합</button>
   </div>
 
   <!-- TAB 1: STORE INPUT -->
@@ -158,6 +159,42 @@
       <div class="foot-note">이 앱을 여는 모든 매장 관리자에게 데이터가 공유됩니다.</div>
     </div>
   </div>
+
+  <!-- TAB 3: NICOTINE-FREE INQUIRY AGGREGATE -->
+  <div id="tab3" class="hidden">
+    <div class="card">
+      <h2><span class="dot"></span>날짜 선택</h2>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="date" id="nic_date" onchange="loadNicotine()" style="flex:1;">
+        <button class="btn btn-ghost btn-small" style="white-space:nowrap;" onclick="loadNicotine()">↻ 새로고침</button>
+      </div>
+      <div class="foot-note" id="nicLastUpdated"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot"></span>매장별 문의 현황</h2>
+      <table id="nicTable">
+        <tr><th>매장</th><th style="text-align:right;">방문고객</th><th style="text-align:right;">전화문의</th><th style="text-align:right;">톡톡문의</th></tr>
+      </table>
+      <div class="empty" id="nicEmpty">불러오는 중...</div>
+    </div>
+
+    <div class="card" id="nicTotalCard" style="display:none;">
+      <h2><span class="dot"></span>전 매장 합계 (당일)</h2>
+      <div class="calc-box"><span>방문고객</span><b id="nicTotalVisit">0명</b></div>
+      <div class="calc-box"><span>전화문의</span><b id="nicTotalPhone">0건</b></div>
+      <div class="calc-box"><span>톡톡문의</span><b id="nicTotalTalk">0건</b></div>
+      <div class="copy-row">
+        <button class="btn btn-ghost btn-small" onclick="copyNicotine()">복사하기</button>
+        <span class="copy-msg" id="nicCopyMsg">복사됐어요 ✓</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot"></span>월 누적 합계</h2>
+      <div id="nicMonthlyBox"><p class="empty">불러오는 중...</p></div>
+    </div>
+  </div>
 </div>
 
 <!-- ===================== Firebase 연동 (Claude 저장소 대체) ===================== -->
@@ -223,13 +260,17 @@ const STORE_NAMES = ['연수점','논현점','계산점','구월길병원점','�
 const todayStr = new Date().toISOString().slice(0,10);
 document.getElementById('f_date').value = todayStr;
 document.getElementById('agg_date').value = todayStr;
+document.getElementById('nic_date').value = todayStr;
 
 function switchTab(n){
   document.getElementById('tab1').classList.toggle('hidden', n!==1);
   document.getElementById('tab2').classList.toggle('hidden', n!==2);
+  document.getElementById('tab3').classList.toggle('hidden', n!==3);
   document.getElementById('tabBtn1').classList.toggle('active', n===1);
   document.getElementById('tabBtn2').classList.toggle('active', n===2);
+  document.getElementById('tabBtn3').classList.toggle('active', n===3);
   if(n===2){ loadAggregate(); }
+  if(n===3){ loadNicotine(); }
 }
 
 function won(n){ return Math.round(n).toLocaleString('ko-KR')+'원'; }
@@ -249,6 +290,11 @@ function grabMoney(text, coreLabel){
 }
 function grabCount(text, coreLabel){
   const re = new RegExp(labelPattern(coreLabel)+'\\s*:\\s*([\\-0-9,]+)\\s*명');
+  const m = text.match(re);
+  return m ? num(m[1]) : 0;
+}
+function grabPlainCount(text, coreLabel){
+  const re = new RegExp(labelPattern(coreLabel)+'\\s*:?\\s*([\\-0-9,]+)');
   const m = text.match(re);
   return m ? num(m[1]) : 0;
 }
@@ -302,8 +348,14 @@ function parseReportText(text){
   const segmentSum = domestic.amount + japan.amount + china.amount + otherForeign.amount;
   const segmentMismatch = totalLabelFound && Math.abs(segmentSum - statedTotal) > 0;
 
+  const nicotineInquiry = {
+    visit: grabPlainCount(text, '방문고객'),
+    phone: grabPlainCount(text, '전화문의'),
+    talk: grabPlainCount(text, '톡톡문의')
+  };
+
   return {storeName, date, cash, transfer, alipay, card, etc, total, totalCustomers,
-    statedTotal, segmentSum, segmentMismatch,
+    statedTotal, segmentSum, segmentMismatch, nicotineInquiry,
     domestic, japan, china, otherForeign, rawText: text};
 }
 
@@ -527,6 +579,117 @@ function copyReceipt(){
   if(!lastReceipt) return;
   navigator.clipboard.writeText(lastReceipt).then(()=>{
     const msg = document.getElementById('copyMsg');
+    msg.classList.add('show');
+    setTimeout(()=>msg.classList.remove('show'), 1500);
+  });
+}
+
+let lastNicotineText = null;
+
+async function loadNicotine(){
+  const date = document.getElementById('nic_date').value;
+  const tableEl = document.getElementById('nicTable');
+  const emptyEl = document.getElementById('nicEmpty');
+  const totalCard = document.getElementById('nicTotalCard');
+  document.getElementById('nicLastUpdated').textContent = '마지막 갱신: ' + new Date().toLocaleTimeString('ko-KR');
+  emptyEl.textContent = '불러오는 중...';
+  emptyEl.style.display = 'block';
+  totalCard.style.display = 'none';
+  while(tableEl.rows.length > 1){ tableEl.deleteRow(1); }
+
+  try{
+    const listRes = await window.storage.list('report:'+date+':', true);
+    const keys = listRes ? listRes.keys : [];
+    const entries = [];
+    for(const k of keys){
+      try{
+        const r = await window.storage.get(k, true);
+        if(r){
+          const history = parseHistory(r.value);
+          entries.push(history[history.length-1]);
+        }
+      }catch(e){}
+    }
+
+    if(entries.length === 0){
+      emptyEl.textContent = '아직 제출된 매장이 없어요.';
+    } else {
+      emptyEl.style.display = 'none';
+
+      let totalVisit=0, totalPhone=0, totalTalk=0;
+      entries.sort((a,b)=> a.storeName.localeCompare(b.storeName,'ko'));
+      entries.forEach(e=>{
+        const n = e.nicotineInquiry || {visit:0, phone:0, talk:0};
+        totalVisit += n.visit; totalPhone += n.phone; totalTalk += n.talk;
+        const row = tableEl.insertRow();
+        row.insertCell().textContent = e.storeName;
+        row.insertCell().outerHTML = `<td class="num">${n.visit}명</td>`;
+        row.insertCell().outerHTML = `<td class="num">${n.phone}건</td>`;
+        row.insertCell().outerHTML = `<td class="num">${n.talk}건</td>`;
+      });
+
+      document.getElementById('nicTotalVisit').textContent = totalVisit+'명';
+      document.getElementById('nicTotalPhone').textContent = totalPhone+'건';
+      document.getElementById('nicTotalTalk').textContent = totalTalk+'건';
+      totalCard.style.display = 'block';
+
+      const [y,mo,d] = date.split('-');
+      lastNicotineText = `[${y} / ${mo} / ${d}]\n무니코틴 문의 건수 - 전 매장 합계\n· 방문고객 : ${totalVisit}명\n· 전화문의 : ${totalPhone}건\n· 톡톡문의 : ${totalTalk}건`;
+    }
+  }catch(e){
+    emptyEl.textContent = '불러오기에 실패했어요.';
+    console.error(e);
+  }
+
+  await renderNicotineMonthly();
+}
+
+async function renderNicotineMonthly(){
+  const box = document.getElementById('nicMonthlyBox');
+  try{
+    const listRes = await window.storage.list('report:', true);
+    const keys = listRes ? listRes.keys : [];
+    const byMonth = {};
+    for(const k of keys){
+      const parts = k.split(':');
+      if(parts.length<3) continue;
+      const date = parts[1];
+      const ym = date.slice(0,7);
+      try{
+        const r = await window.storage.get(k, true);
+        if(r){
+          const history = parseHistory(r.value);
+          const current = history[history.length-1];
+          const n = current.nicotineInquiry || {visit:0, phone:0, talk:0};
+          if(!byMonth[ym]) byMonth[ym] = {visit:0, phone:0, talk:0, days:new Set()};
+          byMonth[ym].visit += n.visit;
+          byMonth[ym].phone += n.phone;
+          byMonth[ym].talk += n.talk;
+          byMonth[ym].days.add(date);
+        }
+      }catch(e){}
+    }
+    const months = Object.keys(byMonth).sort().reverse();
+    if(months.length === 0){
+      box.innerHTML = '<p class="empty">아직 데이터가 없어요.</p>';
+      return;
+    }
+    box.innerHTML = months.map(ym=>{
+      const m = parseInt(ym.split('-')[1]);
+      const v = byMonth[ym];
+      return `<div class="month-total">${m}월 누적 합계 <span style="font-weight:400;color:var(--ink-soft);font-size:12px;">(${v.days.size}일 누적)</span><br>
+        <span style="font-weight:400;">방문고객 ${v.visit}명 · 전화문의 ${v.phone}건 · 톡톡문의 ${v.talk}건</span></div>`;
+    }).join('<div style="height:10px;"></div>');
+  }catch(e){
+    box.innerHTML = '<p class="empty">불러오기에 실패했어요.</p>';
+    console.error(e);
+  }
+}
+
+function copyNicotine(){
+  if(!lastNicotineText) return;
+  navigator.clipboard.writeText(lastNicotineText).then(()=>{
+    const msg = document.getElementById('nicCopyMsg');
     msg.classList.add('show');
     setTimeout(()=>msg.classList.remove('show'), 1500);
   });
