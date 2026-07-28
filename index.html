@@ -3,205 +3,225 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>위베이프 일매출 보고 시스템</title>
+<title>위베이프 일매출 · 통합형</title>
 <style>
   :root{
     --yellow:#FFC800; --yellow-dim:#FFF3C4; --ink:#1A1A1A; --ink-soft:#54524B;
     --paper:#FFFFFF; --line:#E7E2D6; --good:#1F8A45; --bad:#C1392B; --warnbg:#FFF6E5;
     --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
     --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Pretendard,sans-serif;
+    --side-w:210px;
   }
   *{box-sizing:border-box;}
-  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);padding:0 0 60px;line-height:1.5;}
-  .wrap{max-width:760px;margin:0 auto;padding:20px 16px;}
-  header{background:var(--ink);color:var(--yellow);padding:22px;border-radius:0 0 16px 16px;position:relative;overflow:hidden;}
-  header::after{content:"";position:absolute;right:-30px;top:-30px;width:150px;height:150px;background:var(--yellow);opacity:.12;border-radius:50%;}
-  header h1{margin:0 0 4px;font-size:19px;letter-spacing:-.02em;}
-  header p{margin:0;color:#D8D3C4;font-size:12.5px;}
+  body{margin:0;background:#F4F1E8;color:var(--ink);font-family:var(--sans);line-height:1.5;}
 
-  .tabs{display:flex;gap:6px;margin:18px 0;}
-  .tab-btn{flex:1;padding:10px;border:1px solid var(--line);background:var(--paper);border-radius:9px;font-family:var(--sans);font-weight:600;font-size:13.5px;cursor:pointer;color:var(--ink-soft);}
-  .tab-btn.active{background:var(--ink);color:var(--yellow);border-color:var(--ink);}
+  .shell{display:grid;grid-template-columns:var(--side-w) 1fr;min-height:100vh;}
+  .side{background:var(--ink);color:#E8E2D3;padding:20px 12px;position:sticky;top:0;align-self:start;height:100vh;}
+  .side .brand{color:var(--yellow);font-size:15px;font-weight:700;margin-bottom:2px;}
+  .side .brand small{display:block;color:#918B78;font-size:10.5px;font-weight:400;margin-top:2px;}
+  .side nav{margin-top:22px;display:flex;flex-direction:column;gap:2px;}
+  .side nav button{
+    all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:8px;
+    color:#C9C3B2;font-size:13px;font-weight:500;
+  }
+  .side nav button .dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.55;}
+  .side nav button.active{background:#2A2620;color:var(--yellow);font-weight:700;}
 
-  .card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px;}
-  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin:0 0 12px;display:flex;align-items:center;gap:8px;}
-  .card h2 .dot{width:7px;height:7px;border-radius:50%;background:var(--yellow);display:inline-block;}
+  .main{min-width:0;}
+  .strip{
+    background:var(--ink);color:#fff;padding:11px 22px;display:flex;align-items:center;gap:22px;
+    position:sticky;top:0;z-index:5;border-bottom:1px solid #33301F;flex-wrap:wrap;
+  }
+  .strip .item{display:flex;flex-direction:column;gap:1px;}
+  .strip .item span{font-size:9.5px;color:#918B78;letter-spacing:.04em;text-transform:uppercase;}
+  .strip .item b{font-family:var(--mono);font-size:15px;color:var(--yellow);}
+  .strip .item.warn b{color:#FF9B8A;}
+  .strip .spacer{flex:1;}
+  .strip .updated{font-size:10.5px;color:#8D876F;}
 
-  label{font-size:12.5px;color:var(--ink-soft);display:block;margin-bottom:4px;}
-  input[type="text"],input[type="date"],input[type="number"]{
-    width:100%;font-family:var(--sans);font-size:14px;padding:9px 10px;border:1px solid var(--line);
-    border-radius:8px;color:var(--ink);
+  .content{padding:18px 22px;}
+  .page{display:none;} .page.active{display:block;}
+
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;}
+  @media (max-width:900px){ .shell{grid-template-columns:1fr;} .side{position:relative;height:auto;} .cols{grid-template-columns:1fr;} }
+
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:14px 16px;margin-bottom:12px;}
+  .card h2{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:0 0 9px;display:flex;align-items:center;gap:7px;}
+  .card h2 .dot2{width:6px;height:6px;border-radius:50%;background:var(--yellow);display:inline-block;}
+  .card h2 .rf{margin-left:auto;}
+
+  label{font-size:11px;color:var(--ink-soft);display:block;margin-bottom:3px;}
+  input[type="text"],input[type="date"],input[type="number"],select{
+    width:100%;font-family:var(--sans);font-size:13px;padding:7px 9px;border:1px solid var(--line);
+    border-radius:7px;color:var(--ink);
   }
   textarea{
-    width:100%;min-height:220px;border:1px solid var(--line);border-radius:8px;padding:12px;
-    font-family:var(--mono);font-size:12.5px;resize:vertical;color:var(--ink);
+    width:100%;min-height:150px;border:1px solid var(--line);border-radius:7px;padding:9px;
+    font-family:var(--mono);font-size:11.5px;resize:vertical;color:var(--ink);
   }
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
-  .field{margin-bottom:10px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+  .grid4{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+  .field{margin-bottom:8px;}
 
-  .btn{appearance:none;border:none;cursor:pointer;font-family:var(--sans);font-weight:600;font-size:14px;padding:12px 18px;border-radius:9px;width:100%;}
-  .btn-primary{background:var(--ink);color:var(--yellow);margin-top:6px;}
+  .btn{appearance:none;border:none;cursor:pointer;font-family:var(--sans);font-weight:700;font-size:13px;padding:10px 16px;border-radius:8px;width:100%;}
+  .btn-primary{background:var(--ink);color:var(--yellow);margin-top:5px;}
   .btn-ghost{background:var(--yellow-dim);color:var(--ink);}
-  .btn-small{padding:6px 10px;font-size:12px;width:auto;}
+  .btn-small{padding:5px 9px;font-size:11.5px;width:auto;}
   .btn-danger{background:transparent;color:var(--bad);border:1px solid #F0C9C4;}
 
-  .calc-box{background:var(--yellow-dim);border-radius:9px;padding:12px 14px;margin:10px 0;font-size:13.5px;display:flex;justify-content:space-between;}
+  .calc-box{background:var(--yellow-dim);border-radius:8px;padding:9px 12px;margin:8px 0;font-size:12.5px;display:flex;justify-content:space-between;}
   .calc-box b{font-family:var(--mono);}
-  .warn-box{background:var(--warnbg);border:1px solid #F0D9A0;border-radius:9px;padding:10px 12px;font-size:12.5px;color:#8A5A00;margin:8px 0;display:none;}
+  .warn-box{background:var(--warnbg);border:1px solid #F0D9A0;border-radius:8px;padding:9px 11px;font-size:12px;color:#8A5A00;margin:7px 0;display:none;}
   .warn-box.error-box{background:#FBEAEA;border-color:#F0C9C4;color:var(--bad);}
-  .ok-msg{color:var(--good);font-size:13px;margin-top:8px;display:none;}
+  .ok-msg{color:var(--good);font-size:12px;margin-top:6px;display:none;}
 
-  .store-list{list-style:none;margin:0;padding:0;font-size:13px;}
-  .store-list li{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px dashed var(--line);gap:8px;}
+  .store-list{list-style:none;margin:0;padding:0;font-size:12.5px;}
+  .store-list li{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed var(--line);gap:8px;}
   .store-list li:last-child{border-bottom:none;}
   .store-list .name{font-weight:600;}
   .store-list .amt{font-family:var(--mono);color:var(--ink-soft);}
-  .missing-tag{display:inline-block;background:#FBEAEA;color:var(--bad);border-radius:6px;padding:2px 8px;font-size:11.5px;margin:2px 4px 0 0;}
-  .dup-tag{display:inline-block;background:#FFF0D6;color:#8A5A00;border-radius:6px;padding:2px 8px;font-size:11.5px;margin:2px 4px 0 0;}
-  .all-done{background:#EAF7EE;color:var(--good);border-radius:9px;padding:10px 12px;font-size:13px;font-weight:600;}
-  .progress{font-size:12.5px;color:var(--ink-soft);margin-bottom:10px;}
+  .missing-tag{display:inline-block;background:#FBEAEA;color:var(--bad);border-radius:6px;padding:2px 7px;font-size:11px;margin:2px 4px 0 0;}
+  .dup-tag{display:inline-block;background:#FFF0D6;color:#8A5A00;border-radius:6px;padding:2px 7px;font-size:11px;margin:2px 4px 0 0;}
+  .all-done{background:#EAF7EE;color:var(--good);border-radius:8px;padding:8px 10px;font-size:12.5px;font-weight:600;}
+  .progress{font-size:12px;color:var(--ink-soft);margin-bottom:8px;}
 
-  .receipt{background:#FAFAF7;border:1px dashed #C9C4B4;border-radius:8px;padding:16px;font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;color:var(--ink);}
-  .copy-row{display:flex;gap:8px;margin-top:10px;align-items:center;}
-  .copy-msg{font-size:12.5px;color:var(--good);opacity:0;transition:opacity .2s;}
+  .receipt{background:#FAFAF7;border:1px dashed #C9C4B4;border-radius:8px;padding:14px;font-family:var(--mono);font-size:12px;white-space:pre-wrap;color:var(--ink);}
+  .copy-row{display:flex;gap:8px;margin-top:9px;align-items:center;}
+  .copy-msg{font-size:12px;color:var(--good);opacity:0;transition:opacity .2s;}
   .copy-msg.show{opacity:1;}
 
-  table{width:100%;border-collapse:collapse;font-size:13px;}
-  th,td{text-align:left;padding:7px 4px;border-bottom:1px solid var(--line);}
-  th{color:var(--ink-soft);font-weight:500;font-size:12px;}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  th,td{text-align:left;padding:6px 4px;border-bottom:1px solid var(--line);}
+  th{color:var(--ink-soft);font-weight:500;font-size:11.5px;}
   td.num{font-family:var(--mono);text-align:right;}
-  .month-total{font-weight:700;font-size:14px;margin-top:2px;}
-  .empty{color:var(--ink-soft);font-size:13px;padding:6px 0;}
-  .foot-note{font-size:11.5px;color:var(--ink-soft);margin-top:8px;line-height:1.6;}
+  .empty{color:var(--ink-soft);font-size:12.5px;padding:5px 0;}
+  .foot-note{font-size:11px;color:var(--ink-soft);margin-top:6px;line-height:1.55;}
   .hidden{display:none;}
-  .parse-warn{color:var(--bad);font-size:12.5px;margin-top:8px;display:none;}
+  .parse-warn{color:var(--bad);font-size:12px;margin-top:6px;display:none;}
 </style>
 </head>
 <body>
-<header>
-  <div class="wrap" style="padding:0;">
-    <h1>위베이프 일매출 보고 시스템</h1>
-    <p>매장 보고 텍스트를 그대로 붙여넣으면 자동으로 계산돼요.</p>
-  </div>
-</header>
 
-<div class="wrap">
-  <div class="tabs">
-    <button class="tab-btn active" id="tabBtn1" onclick="switchTab(1)">매장 보고 입력</button>
-    <button class="tab-btn" id="tabBtn2" onclick="switchTab(2)">전체 현황 · 종합</button>
-    <button class="tab-btn" id="tabBtn3" onclick="switchTab(3)">무니코틴 문의 취합</button>
-  </div>
+<div class="shell">
+  <aside class="side">
+    <div class="brand">위베이프<small>일매출 보고 시스템</small></div>
+    <nav>
+      <button class="active" id="navBtn1" onclick="switchTab(1)"><span class="dot"></span>매장 보고 입력</button>
+      <button id="navBtn3" onclick="switchTab(3)"><span class="dot"></span>무니코틴 문의 취합</button>
+    </nav>
+  </aside>
 
-  <!-- TAB 1: STORE INPUT -->
-  <div id="tab1">
+  <div class="main">
+    <div class="strip">
+      <div class="item"><span>총매출</span><b id="stripTotal">-</b></div>
+      <div class="item"><span>제출 현황</span><b id="stripProgress">-</b></div>
+      <div class="item warn"><span>미제출</span><b id="stripMissing">-</b></div>
+      <div class="spacer"></div>
+      <div class="updated" id="stripUpdated"></div>
+    </div>
 
-    <div class="card">
-      <h2><span class="dot"></span>기본 정보</h2>
-      <div class="grid2">
-        <div class="field">
-          <label>날짜</label>
-          <input type="date" id="f_date">
+    <div class="content">
+      <!-- PAGE 1: STORE INPUT + AGGREGATE (merged) -->
+      <div id="tab1" class="page active">
+        <div class="cols">
+          <div>
+            <div class="card">
+              <h2><span class="dot2"></span>기본 정보</h2>
+              <div class="row2">
+                <div class="field"><label>날짜</label><input type="date" id="f_date"></div>
+                <div class="field"><label>매장명</label><select id="f_store"><option value="">선택</option></select></div>
+              </div>
+              <div class="foot-note">보고 텍스트 안에 매장명·근무일이 있으면 자동으로 채워져요.</div>
+            </div>
+            <div class="card">
+              <h2><span class="dot2"></span>매장 보고 붙여넣기</h2>
+              <textarea id="reportText" placeholder="■ 검단점&#10; · 근무일 : 2026-07-20&#10;...&#10;'일일매출'과 '고객층별 객수/매출' 항목만 있으면 돼요."></textarea>
+              <button class="btn btn-primary" onclick="submitReport()">제출하기</button>
+              <div class="parse-warn" id="parseWarn">보고 텍스트를 인식하지 못했어요. "■ 매장명" 다음 줄에 "· 근무일 :" 형식이 있는지 확인해주세요.</div>
+              <div class="warn-box" id="dateWarn" style="display:none;"></div>
+              <div class="warn-box" id="mismatchWarn" style="display:none;"></div>
+              <div class="warn-box" id="dupWarn" style="display:none;"></div>
+              <div class="calc-box" id="previewBox" style="display:none;"><span id="previewLabel">-</span><b id="previewTotal">0원</b></div>
+              <div class="ok-msg" id="submitMsg">제출됐어요 ✓ 같은 매장·날짜로 다시 제출하면 이전 값을 덮어써요.</div>
+            </div>
+          </div>
+
+          <div>
+            <div class="card">
+              <h2><span class="dot2"></span>오늘 제출 현황<button class="btn btn-ghost btn-small rf" onclick="loadAggregate()">새로고침</button></h2>
+              <div class="progress" id="progressText">불러오는 중...</div>
+              <div style="max-height:230px;overflow-y:auto;">
+                <ul class="store-list" id="submittedList"></ul>
+                <div id="missingBox" style="margin-top:7px;"></div>
+              </div>
+            </div>
+            <div class="card">
+              <h2><span class="dot2"></span>따이공 취합</h2>
+              <div class="foot-note" style="margin:0 0 8px;">매장 제출과 별개로, 실장님/팀장님이 하루에 한 번만 직접 입력해요.</div>
+              <div class="grid4">
+                <div class="field" style="grid-column:span 2;"><label>따이공 (원)</label><input type="number" id="ex_daigong" value="0"></div>
+                <div class="field"><label>그래피티C 파드 (개)</label><input type="number" id="ex_gcPad" value="0"></div>
+                <div class="field"><label>그래피티C 기기 (개)</label><input type="number" id="ex_gcGigi" value="0"></div>
+                <div class="field"><label>그래피티2 파드 (개)</label><input type="number" id="ex_g2Pad" value="0"></div>
+                <div class="field"><label>그래피티2 기기 (개)</label><input type="number" id="ex_g2Gigi" value="0"></div>
+                <div class="field"><label>롤리팟 액상 (병)</label><input type="number" id="ex_lolipot" value="0"></div>
+                <div class="field"><label>그래피티3 (대)</label><input type="number" id="ex_g3" value="0"></div>
+              </div>
+              <button class="btn btn-ghost" onclick="saveExtra()">저장</button>
+              <div class="ok-msg" id="exSaveMsg">저장됐어요 ✓</div>
+            </div>
+          </div>
         </div>
-        <div class="field">
-          <label>매장명</label>
-          <select id="f_store"><option value="">선택</option></select>
+
+        <div class="card" id="receiptCard" style="display:none;">
+          <h2><span class="dot2"></span>종합 보고 (카톡방 전송용)</h2>
+          <div class="receipt" id="receiptBox"></div>
+          <div class="copy-row">
+            <button class="btn btn-ghost btn-small" onclick="copyReceipt()">복사하기</button>
+            <span class="copy-msg" id="copyMsg">복사됐어요 ✓</span>
+          </div>
+        </div>
+        <div class="foot-note" id="lastUpdated" style="margin:0 0 20px;"></div>
+      </div>
+
+      <!-- PAGE 3: NICOTINE -->
+      <div id="tab3" class="page">
+        <div class="card">
+          <h2><span class="dot2"></span>날짜 선택</h2>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="date" id="nic_date" onchange="loadNicotine()" style="flex:1;">
+            <button class="btn btn-ghost btn-small" style="white-space:nowrap;" onclick="loadNicotine()">↻ 새로고침</button>
+          </div>
+          <div class="foot-note" id="nicLastUpdated"></div>
+        </div>
+        <div class="card">
+          <h2><span class="dot2"></span>매장별 문의 현황</h2>
+          <table id="nicTable"><tr><th>매장</th><th style="text-align:right;">방문고객</th><th style="text-align:right;">전화문의</th><th style="text-align:right;">톡톡문의</th></tr></table>
+          <div class="empty" id="nicEmpty">불러오는 중...</div>
+        </div>
+        <div class="card" id="nicTotalCard" style="display:none;">
+          <h2><span class="dot2"></span>전 매장 합계 (당일)</h2>
+          <div class="calc-box"><span>방문고객</span><b id="nicTotalVisit">0명</b></div>
+          <div class="calc-box"><span>전화문의</span><b id="nicTotalPhone">0건</b></div>
+          <div class="calc-box"><span>톡톡문의</span><b id="nicTotalTalk">0건</b></div>
+          <div class="copy-row">
+            <button class="btn btn-ghost btn-small" onclick="copyNicotine()">복사하기</button>
+            <span class="copy-msg" id="nicCopyMsg">복사됐어요 ✓</span>
+          </div>
+        </div>
+        <div class="card">
+          <h2><span class="dot2"></span>월 누적 합계</h2>
+          <div id="nicMonthlyBox"><p class="empty">불러오는 중...</p></div>
         </div>
       </div>
-      <div class="foot-note">보고 텍스트 안에 매장명·근무일이 있으면 자동으로 채워져요. 비어있을 때만 직접 입력하면 됩니다.</div>
-    </div>
-
-    <div class="card">
-      <h2><span class="dot"></span>매장 보고 붙여넣기</h2>
-      <textarea id="reportText" placeholder="■ 검단점&#10; · 근무일 : 2026-07-20&#10;...&#10;'일일매출'과 '고객층별 객수/매출' 항목만 있으면 돼요. 설문·리뷰·신규유입 등 나머지 부분은 잘라내고 붙여넣어도 괜찮습니다."></textarea>
-      <div class="foot-note">필요한 건 "■ 매장명 / · 근무일" 첫 줄과, ■ 일일매출 / ■ 고객층별 객수·매출 두 섹션뿐이에요. 그 외 나머지 섹션(설문, 리뷰, 신규유입, 지도순위 등)은 잘라내고 붙여넣어도 정상 작동합니다.</div>
-      <button class="btn btn-primary" onclick="submitReport()">제출하기</button>
-      <div class="parse-warn" id="parseWarn">보고 텍스트를 인식하지 못했어요. "■ 매장명" 다음 줄에 "· 근무일 :" 형식이 있는지 확인해주세요.</div>
-      <div class="warn-box" id="dateWarn" style="display:none;"></div>
-      <div class="warn-box" id="mismatchWarn" style="display:none;"></div>
-      <div class="warn-box" id="dupWarn" style="display:none;"></div>
-      <div class="calc-box" id="previewBox" style="display:none;">
-        <span id="previewLabel">-</span><b id="previewTotal">0원</b>
-      </div>
-      <div class="ok-msg" id="submitMsg">제출됐어요 ✓ 같은 매장·날짜로 다시 제출하면 이전 값을 덮어써요.</div>
-    </div>
-  </div>
-
-  <!-- TAB 2: AGGREGATE -->
-  <div id="tab2" class="hidden">
-    <div class="card">
-      <h2><span class="dot"></span>날짜 선택</h2>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <input type="date" id="agg_date" onchange="loadAggregate()" style="flex:1;">
-        <button class="btn btn-ghost btn-small" style="white-space:nowrap;" onclick="loadAggregate()">↻ 새로고침</button>
-      </div>
-      <div class="foot-note" id="lastUpdated"></div>
-    </div>
-
-    <div class="card">
-      <h2><span class="dot"></span>제출 현황</h2>
-      <div class="progress" id="progressText">불러오는 중...</div>
-      <ul class="store-list" id="submittedList"></ul>
-      <div id="missingBox" style="margin-top:8px;"></div>
-    </div>
-
-    <div class="card" id="receiptCard" style="display:none;">
-      <h2><span class="dot"></span>종합 보고 (카톡방 전송용)</h2>
-      <div class="receipt" id="receiptBox"></div>
-      <div class="copy-row">
-        <button class="btn btn-ghost btn-small" onclick="copyReceipt()">복사하기</button>
-        <span class="copy-msg" id="copyMsg">복사됐어요 ✓</span>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2><span class="dot"></span>월 누적 매출</h2>
-      <div id="monthlyBox"><p class="empty">불러오는 중...</p></div>
-      <div class="foot-note">이 앱을 여는 모든 매장 관리자에게 데이터가 공유됩니다.</div>
-    </div>
-  </div>
-
-  <!-- TAB 3: NICOTINE-FREE INQUIRY AGGREGATE -->
-  <div id="tab3" class="hidden">
-    <div class="card">
-      <h2><span class="dot"></span>날짜 선택</h2>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <input type="date" id="nic_date" onchange="loadNicotine()" style="flex:1;">
-        <button class="btn btn-ghost btn-small" style="white-space:nowrap;" onclick="loadNicotine()">↻ 새로고침</button>
-      </div>
-      <div class="foot-note" id="nicLastUpdated"></div>
-    </div>
-
-    <div class="card">
-      <h2><span class="dot"></span>매장별 문의 현황</h2>
-      <table id="nicTable">
-        <tr><th>매장</th><th style="text-align:right;">방문고객</th><th style="text-align:right;">전화문의</th><th style="text-align:right;">톡톡문의</th></tr>
-      </table>
-      <div class="empty" id="nicEmpty">불러오는 중...</div>
-    </div>
-
-    <div class="card" id="nicTotalCard" style="display:none;">
-      <h2><span class="dot"></span>전 매장 합계 (당일)</h2>
-      <div class="calc-box"><span>방문고객</span><b id="nicTotalVisit">0명</b></div>
-      <div class="calc-box"><span>전화문의</span><b id="nicTotalPhone">0건</b></div>
-      <div class="calc-box"><span>톡톡문의</span><b id="nicTotalTalk">0건</b></div>
-      <div class="copy-row">
-        <button class="btn btn-ghost btn-small" onclick="copyNicotine()">복사하기</button>
-        <span class="copy-msg" id="nicCopyMsg">복사됐어요 ✓</span>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2><span class="dot"></span>월 누적 합계</h2>
-      <div id="nicMonthlyBox"><p class="empty">불러오는 중...</p></div>
     </div>
   </div>
 </div>
 
-<!-- ===================== Firebase 연동 (Claude 저장소 대체) ===================== -->
+<!-- ===================== Firebase 연동 ===================== -->
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <script>
-  // ▼▼▼ 여기에 Firebase 콘솔에서 받은 firebaseConfig 값을 그대로 붙여넣으세요 ▼▼▼
   const firebaseConfig = {
     apiKey: "AIzaSyCzlKAG7sBRFo532csNh_4FV80zOKm_JVI",
     authDomain: "wevape-sales.firebaseapp.com",
@@ -210,8 +230,6 @@
     messagingSenderId: "946833332360",
     appId: "1:946833332360:web:c918c061e94c97f8f4a73d"
   };
-  // ▲▲▲ 여기까지 ▲▲▲
-
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
 
@@ -244,7 +262,6 @@
 
 <script>
 
-
 const STORE_NAMES = ['연수점','논현점','계산점','구월길병원점','구월로데오점','검단점','중동점','상동점','인천공항점']
   .sort((a,b)=>a.localeCompare(b,'ko'));
 
@@ -259,17 +276,13 @@ const STORE_NAMES = ['연수점','논현점','계산점','구월길병원점','�
 
 const todayStr = new Date().toISOString().slice(0,10);
 document.getElementById('f_date').value = todayStr;
-document.getElementById('agg_date').value = todayStr;
 document.getElementById('nic_date').value = todayStr;
 
 function switchTab(n){
-  document.getElementById('tab1').classList.toggle('hidden', n!==1);
-  document.getElementById('tab2').classList.toggle('hidden', n!==2);
-  document.getElementById('tab3').classList.toggle('hidden', n!==3);
-  document.getElementById('tabBtn1').classList.toggle('active', n===1);
-  document.getElementById('tabBtn2').classList.toggle('active', n===2);
-  document.getElementById('tabBtn3').classList.toggle('active', n===3);
-  if(n===2){ loadAggregate(); }
+  document.getElementById('tab1').classList.toggle('active', n===1);
+  document.getElementById('tab3').classList.toggle('active', n===3);
+  document.getElementById('navBtn1').classList.toggle('active', n===1);
+  document.getElementById('navBtn3').classList.toggle('active', n===3);
   if(n===3){ loadNicotine(); }
 }
 
@@ -421,7 +434,7 @@ async function submitReport(){
 
   if(history.length > 0){
     const prevTotal = history[history.length-1].total;
-    dupWarn.innerHTML = `⚠ <b>${store}</b>의 <b>${date}</b> 보고가 이미 제출되어 있어요 (총액 ${won(prevTotal)}). 중복 입력이라 저장하지 않았어요. 수정이 필요하면 "전체 현황·종합" 탭에서 기존 항목을 먼저 삭제한 뒤 다시 제출해주세요.`;
+    dupWarn.innerHTML = `⚠ <b>${store}</b>의 <b>${date}</b> 보고가 이미 제출되어 있어요 (총액 ${won(prevTotal)}). 중복 입력이라 저장하지 않았어요. 수정이 필요하면 오른쪽 "오늘 제출 현황"에서 기존 항목을 먼저 삭제한 뒤 다시 제출해주세요.`;
     dupWarn.style.display='block';
     return;
   }
@@ -432,13 +445,15 @@ async function submitReport(){
   try{
     await window.storage.set(key, JSON.stringify(history), true);
 
-    document.getElementById('previewLabel').textContent = `${store} · ${date} 총액${history.length>1 ? ` (${history.length}회 제출됨)` : ''}`;
+    document.getElementById('previewLabel').textContent = `${store} · ${date} 총액`;
     document.getElementById('previewTotal').textContent = won(parsed.total);
     previewBox.style.display='flex';
 
     const msg = document.getElementById('submitMsg');
     msg.style.display='block';
     setTimeout(()=>msg.style.display='none', 2500);
+
+    await loadAggregate();
   }catch(e){
     parseWarn.textContent = '제출에 실패했어요. 다시 시도해주세요.';
     parseWarn.style.display='block';
@@ -473,9 +488,9 @@ async function deleteEntry(btn, date, storeName){
     try{
       const existing = await window.storage.get(key, true);
       if(existing){ history = parseHistory(existing.value); }
-    }catch(e){ /* nothing stored */ }
+    }catch(e){}
 
-    history.pop(); // undo the most recent submission only
+    history.pop();
 
     if(history.length > 0){
       await window.storage.set(key, JSON.stringify(history), true);
@@ -494,8 +509,47 @@ async function deleteEntry(btn, date, storeName){
 
 let lastReceipt = null;
 
+function extraKey(date){ return 'extra:'+date; }
+
+async function loadExtra(date){
+  const ids = ['ex_daigong','ex_gcPad','ex_gcGigi','ex_g2Pad','ex_g2Gigi','ex_lolipot','ex_g3'];
+  try{
+    const r = await window.storage.get(extraKey(date), true);
+    const d = r ? JSON.parse(r.value) : {};
+    ids.forEach(id=>{ document.getElementById(id).value = d[id] || 0; });
+  }catch(e){
+    ids.forEach(id=>{ document.getElementById(id).value = 0; });
+  }
+}
+
+async function saveExtra(){
+  const date = document.getElementById('f_date').value;
+  const ids = ['ex_daigong','ex_gcPad','ex_gcGigi','ex_g2Pad','ex_g2Gigi','ex_lolipot','ex_g3'];
+  const d = {};
+  ids.forEach(id=>{ d[id] = num(document.getElementById(id).value); });
+  try{
+    await window.storage.set(extraKey(date), JSON.stringify(d), true);
+    const msg = document.getElementById('exSaveMsg');
+    msg.style.display='block';
+    setTimeout(()=>msg.style.display='none', 2500);
+    await loadAggregate();
+  }catch(e){ console.error(e); }
+}
+
+function getExtraValues(){
+  return {
+    daigong: num(document.getElementById('ex_daigong').value),
+    gcPad: num(document.getElementById('ex_gcPad').value),
+    gcGigi: num(document.getElementById('ex_gcGigi').value),
+    g2Pad: num(document.getElementById('ex_g2Pad').value),
+    g2Gigi: num(document.getElementById('ex_g2Gigi').value),
+    lolipot: num(document.getElementById('ex_lolipot').value),
+    g3: num(document.getElementById('ex_g3').value)
+  };
+}
+
 async function loadAggregate(){
-  const date = document.getElementById('agg_date').value;
+  const date = document.getElementById('f_date').value || todayStr;
   const progressEl = document.getElementById('progressText');
   const listEl = document.getElementById('submittedList');
   const missingBox = document.getElementById('missingBox');
@@ -505,33 +559,37 @@ async function loadAggregate(){
   missingBox.innerHTML = '';
   receiptCard.style.display='none';
   document.getElementById('lastUpdated').textContent = '마지막 갱신: ' + new Date().toLocaleTimeString('ko-KR');
+  document.getElementById('stripUpdated').textContent = '갱신: ' + new Date().toLocaleTimeString('ko-KR');
+  const extraPromise = loadExtra(date);
 
   try{
     const listRes = await window.storage.list('report:'+date+':', true);
     const keys = listRes ? listRes.keys : [];
-    const entries = [];
-    for(const k of keys){
+    const fetched = await Promise.all(keys.map(async k=>{
       try{
         const r = await window.storage.get(k, true);
-        if(r){
-          const history = parseHistory(r.value);
-          const current = history[history.length-1];
-          entries.push({...current, _dupCount: history.length});
-        }
-      }catch(e){}
-    }
+        if(!r) return null;
+        const history = parseHistory(r.value);
+        const current = history[history.length-1];
+        return {...current, _dupCount: history.length};
+      }catch(e){ return null; }
+    }));
+    const entries = fetched.filter(Boolean);
+    await extraPromise;
 
     const submittedNames = entries.map(e=>e.storeName);
     const missing = STORE_NAMES.filter(n=>!submittedNames.includes(n));
 
-    progressEl.textContent = `${entries.length} / ${STORE_NAMES.length}개 매장 제출됨`;
+    progressEl.textContent = `${date} · ${entries.length} / ${STORE_NAMES.length}개 매장 제출됨`;
+    document.getElementById('stripProgress').textContent = `${entries.length} / ${STORE_NAMES.length}`;
+    document.getElementById('stripMissing').textContent = missing.length ? `${missing.length}개점` : '없음';
 
     listEl.innerHTML = entries.length
-      ? entries.map(e=>`<li><span class="name">${e.storeName}${e._dupCount>1?` <span style="color:var(--ink-soft);font-weight:400;font-size:11.5px;">(${e._dupCount}회 제출)</span>`:''}</span><span style="display:flex;align-items:center;gap:10px;"><span class="amt">${won(e.total)}</span><button class="btn btn-danger btn-small" onclick="handleDeleteClick(this,'${date}','${e.storeName}')">삭제</button></span></li>`).join('')
+      ? entries.map(e=>`<li><span class="name">${e.storeName}${e._dupCount>1?` <span style="color:var(--ink-soft);font-weight:400;font-size:11px;">(${e._dupCount}회)</span>`:''}</span><span style="display:flex;align-items:center;gap:8px;"><span class="amt">${won(e.total)}</span><button class="btn btn-danger btn-small" onclick="handleDeleteClick(this,'${date}','${e.storeName}')">삭제</button></span></li>`).join('')
       : '<li class="empty">아직 제출된 매장이 없어요.</li>';
 
     if(missing.length){
-      missingBox.innerHTML = '<div style="font-size:12px;color:var(--ink-soft);margin-bottom:4px;">미제출 매장</div>' +
+      missingBox.innerHTML = '<div style="font-size:11px;color:var(--ink-soft);margin-bottom:4px;">미제출 매장</div>' +
         missing.map(n=>`<span class="missing-tag">${n}</span>`).join('');
     } else if(entries.length > 0){
       missingBox.innerHTML = '<div class="all-done">✓ 전 매장 제출 완료</div>';
@@ -539,12 +597,14 @@ async function loadAggregate(){
 
     const duplicates = entries.filter(e=>e._dupCount>1);
     if(duplicates.length){
-      missingBox.innerHTML += '<div style="font-size:12px;color:var(--ink-soft);margin:8px 0 4px;">중복 제출된 매장 (최신 값만 계산에 반영됨, 삭제 누르면 직전 제출값으로 되돌아가요)</div>' +
+      missingBox.innerHTML += '<div style="font-size:11px;color:var(--ink-soft);margin:7px 0 4px;">중복 제출된 매장 (삭제 누르면 직전 값으로 되돌아가요)</div>' +
         duplicates.map(e=>`<span class="dup-tag">${e.storeName} · ${e._dupCount}회</span>`).join('');
     }
 
-
-    if(entries.length===0){ await renderMonthly(); return; }
+    if(entries.length===0){
+      document.getElementById('stripTotal').textContent = won(0);
+      return;
+    }
 
     const sum = {cash:0,transfer:0,alipay:0,card:0,etc:0,total:0,totalCustomers:0,
       domestic:{count:0,amount:0},japan:{count:0,amount:0},china:{count:0,amount:0},otherForeign:{count:0,amount:0}};
@@ -553,6 +613,8 @@ async function loadAggregate(){
       sum.totalCustomers+=e.totalCustomers;
       ['domestic','japan','china','otherForeign'].forEach(k=>{ sum[k].count+=e[k].count; sum[k].amount+=e[k].amount; });
     });
+
+    document.getElementById('stripTotal').textContent = won(sum.total);
 
     const [y,mo,d] = date.split('-');
     let receipt = '';
@@ -564,11 +626,19 @@ async function loadAggregate(){
     receipt += `· 중국유커 : ${won(sum.china.amount)}\n`;
     receipt += `· 기타 외국인 : ${won(sum.otherForeign.amount)}\n`;
 
+    const ex = getExtraValues();
+    receipt += `------------------------------------\n`;
+    receipt += `· 따이공 : ${won(ex.daigong)}\n`;
+    receipt += `· 그래피티C 파드 : ${ex.gcPad}개\n`;
+    receipt += `· 그래피티C 기기 : ${ex.gcGigi}개\n`;
+    receipt += `· 그래피티2 파드 : ${ex.g2Pad}개\n`;
+    receipt += `· 그래피티2 기기 : ${ex.g2Gigi}개\n`;
+    receipt += `· 롤리팟 액상 : ${ex.lolipot}병\n`;
+    receipt += `· 그래피티3 : ${ex.g3}대\n`;
+
     document.getElementById('receiptBox').textContent = receipt;
     receiptCard.style.display='block';
     lastReceipt = receipt;
-
-    renderMonthly();
   }catch(e){
     console.error(e);
     progressEl.textContent = '불러오기 실패';
@@ -600,16 +670,15 @@ async function loadNicotine(){
   try{
     const listRes = await window.storage.list('report:'+date+':', true);
     const keys = listRes ? listRes.keys : [];
-    const entries = [];
-    for(const k of keys){
+    const fetched = await Promise.all(keys.map(async k=>{
       try{
         const r = await window.storage.get(k, true);
-        if(r){
-          const history = parseHistory(r.value);
-          entries.push(history[history.length-1]);
-        }
-      }catch(e){}
-    }
+        if(!r) return null;
+        const history = parseHistory(r.value);
+        return history[history.length-1];
+      }catch(e){ return null; }
+    }));
+    const entries = fetched.filter(Boolean);
 
     if(entries.length === 0){
       emptyEl.textContent = '아직 제출된 매장이 없어요.';
@@ -650,25 +719,27 @@ async function renderNicotineMonthly(){
     const listRes = await window.storage.list('report:', true);
     const keys = listRes ? listRes.keys : [];
     const byMonth = {};
-    for(const k of keys){
+    const results = await Promise.all(keys.map(async k=>{
       const parts = k.split(':');
-      if(parts.length<3) continue;
+      if(parts.length<3) return null;
       const date = parts[1];
-      const ym = date.slice(0,7);
       try{
         const r = await window.storage.get(k, true);
-        if(r){
-          const history = parseHistory(r.value);
-          const current = history[history.length-1];
-          const n = current.nicotineInquiry || {visit:0, phone:0, talk:0};
-          if(!byMonth[ym]) byMonth[ym] = {visit:0, phone:0, talk:0, days:new Set()};
-          byMonth[ym].visit += n.visit;
-          byMonth[ym].phone += n.phone;
-          byMonth[ym].talk += n.talk;
-          byMonth[ym].days.add(date);
-        }
-      }catch(e){}
-    }
+        if(!r) return null;
+        const history = parseHistory(r.value);
+        const current = history[history.length-1];
+        const n = current.nicotineInquiry || {visit:0, phone:0, talk:0};
+        return {date, n};
+      }catch(e){ return null; }
+    }));
+    results.filter(Boolean).forEach(({date, n})=>{
+      const ym = date.slice(0,7);
+      if(!byMonth[ym]) byMonth[ym] = {visit:0, phone:0, talk:0, days:new Set()};
+      byMonth[ym].visit += n.visit;
+      byMonth[ym].phone += n.phone;
+      byMonth[ym].talk += n.talk;
+      byMonth[ym].days.add(date);
+    });
     const months = Object.keys(byMonth).sort().reverse();
     if(months.length === 0){
       box.innerHTML = '<p class="empty">아직 데이터가 없어요.</p>';
@@ -677,9 +748,9 @@ async function renderNicotineMonthly(){
     box.innerHTML = months.map(ym=>{
       const m = parseInt(ym.split('-')[1]);
       const v = byMonth[ym];
-      return `<div class="month-total">${m}월 누적 합계 <span style="font-weight:400;color:var(--ink-soft);font-size:12px;">(${v.days.size}일 누적)</span><br>
+      return `<div style="font-weight:700;font-size:13px;margin-top:2px;">${m}월 누적 합계 <span style="font-weight:400;color:var(--ink-soft);font-size:11.5px;">(${v.days.size}일 누적)</span><br>
         <span style="font-weight:400;">방문고객 ${v.visit}명 · 전화문의 ${v.phone}건 · 톡톡문의 ${v.talk}건</span></div>`;
-    }).join('<div style="height:10px;"></div>');
+    }).join('<div style="height:8px;"></div>');
   }catch(e){
     box.innerHTML = '<p class="empty">불러오기에 실패했어요.</p>';
     console.error(e);
@@ -695,54 +766,8 @@ function copyNicotine(){
   });
 }
 
-async function renderMonthly(){
-  const box = document.getElementById('monthlyBox');
-  try{
-    const listRes = await window.storage.list('report:', true);
-    const keys = listRes ? listRes.keys : [];
-    const byDateTotal = {};
-    for(const k of keys){
-      const parts = k.split(':');
-      if(parts.length<3) continue;
-      const date = parts[1];
-      try{
-        const r = await window.storage.get(k, true);
-        if(r){
-          const history = parseHistory(r.value);
-          const current = history[history.length-1];
-          byDateTotal[date] = (byDateTotal[date]||0) + current.total;
-        }
-      }catch(e){}
-    }
-    const dates = Object.keys(byDateTotal);
-    if(dates.length===0){
-      box.innerHTML = '<p class="empty">아직 데이터가 없어요.</p>';
-      return;
-    }
-    const byMonth = {};
-    dates.forEach(dt=>{
-      const ym = dt.slice(0,7);
-      if(!byMonth[ym]) byMonth[ym]={total:0,days:0};
-      byMonth[ym].total += byDateTotal[dt];
-      byMonth[ym].days += 1;
-    });
-    const months = Object.keys(byMonth).sort().reverse();
-    let html = '';
-    months.forEach(ym=>{
-      const m = parseInt(ym.split('-')[1]);
-      html += `<div class="month-total">${m}월 총매출 : ${won(byMonth[ym].total)} <span style="font-weight:400;color:var(--ink-soft);font-size:12px;">(${byMonth[ym].days}일 누적)</span></div>`;
-    });
-    html += '<table style="margin-top:12px;"><tr><th>날짜</th><th style="text-align:right;">일 총매출</th></tr>';
-    dates.sort().reverse().slice(0,31).forEach(dt=>{
-      html += `<tr><td>${dt}</td><td class="num">${won(byDateTotal[dt])}</td></tr>`;
-    });
-    html += '</table>';
-    box.innerHTML = html;
-  }catch(e){
-    box.innerHTML = '<p class="empty">불러오기에 실패했어요.</p>';
-    console.error(e);
-  }
-}
+document.getElementById('f_date').addEventListener('change', loadAggregate);
+loadAggregate();
 </script>
 </body>
 </html>
