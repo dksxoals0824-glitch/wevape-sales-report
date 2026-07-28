@@ -42,11 +42,12 @@
   .content{padding:18px 22px;}
   .page{display:none;} .page.active{display:block;}
 
-  .cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;}
-  @media (max-width:900px){ .shell{grid-template-columns:1fr;} .side{position:relative;height:auto;} .cols{grid-template-columns:1fr;} }
+  .cols{display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:14px;}
+  .stack-fill{display:flex;flex-direction:column;min-height:0;}
+  @media (max-width:900px){ .shell{grid-template-columns:1fr;} .side{position:relative;height:auto;} .cols{grid-template-columns:1fr;grid-auto-rows:auto;} }
 
-  .card{background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:14px 16px;margin-bottom:12px;}
-  .card h2{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:0 0 9px;display:flex;align-items:center;gap:7px;}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:11px;padding:14px 16px;margin-bottom:12px;display:flex;flex-direction:column;min-height:0;}
+  .card h2{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin:0 0 9px;display:flex;align-items:center;gap:7px;flex:0 0 auto;}
   .card h2 .dot2{width:6px;height:6px;border-radius:50%;background:var(--yellow);display:inline-block;}
   .card h2 .rf{margin-left:auto;}
 
@@ -75,15 +76,15 @@
   .warn-box.error-box{background:#FBEAEA;border-color:#F0C9C4;color:var(--bad);}
   .ok-msg{color:var(--good);font-size:12px;margin-top:6px;display:none;}
 
-  .store-list{list-style:none;margin:0;padding:0;font-size:12.5px;}
-  .store-list li{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed var(--line);gap:8px;}
+  .store-list{list-style:none;margin:0;padding:0;font-size:11px;}
+  .store-list li{display:flex;justify-content:space-between;align-items:center;padding:3.5px 0;border-bottom:1px dashed var(--line);gap:8px;}
   .store-list li:last-child{border-bottom:none;}
   .store-list .name{font-weight:600;}
   .store-list .amt{font-family:var(--mono);color:var(--ink-soft);}
   .missing-tag{display:inline-block;background:#FBEAEA;color:var(--bad);border-radius:6px;padding:2px 7px;font-size:11px;margin:2px 4px 0 0;}
   .dup-tag{display:inline-block;background:#FFF0D6;color:#8A5A00;border-radius:6px;padding:2px 7px;font-size:11px;margin:2px 4px 0 0;}
   .all-done{background:#EAF7EE;color:var(--good);border-radius:8px;padding:8px 10px;font-size:12.5px;font-weight:600;}
-  .progress{font-size:12px;color:var(--ink-soft);margin-bottom:8px;}
+  .progress{font-size:11px;color:var(--ink-soft);margin-bottom:6px;}
 
   .receipt{background:#FAFAF7;border:1px dashed #C9C4B4;border-radius:8px;padding:14px;font-family:var(--mono);font-size:12px;white-space:pre-wrap;color:var(--ink);}
   .copy-row{display:flex;gap:8px;margin-top:9px;align-items:center;}
@@ -124,8 +125,8 @@
       <!-- PAGE 1: STORE INPUT + AGGREGATE (merged) -->
       <div id="tab1" class="page active">
         <div class="cols">
-          <div>
-            <div class="card">
+          <div class="stack-fill">
+            <div class="card" style="flex:0 0 auto;">
               <h2><span class="dot2"></span>기본 정보</h2>
               <div class="row2">
                 <div class="field"><label>날짜</label><input type="date" id="f_date"></div>
@@ -133,9 +134,9 @@
               </div>
               <div class="foot-note">보고 텍스트 안에 매장명·근무일이 있으면 자동으로 채워져요.</div>
             </div>
-            <div class="card">
+            <div class="card" style="flex:1;">
               <h2><span class="dot2"></span>매장 보고 붙여넣기</h2>
-              <textarea id="reportText" placeholder="■ 검단점&#10; · 근무일 : 2026-07-20&#10;...&#10;'일일매출'과 '고객층별 객수/매출' 항목만 있으면 돼요."></textarea>
+              <textarea id="reportText" style="flex:1;" placeholder="■ 검단점&#10; · 근무일 : 2026-07-20&#10;...&#10;'일일매출'과 '고객층별 객수/매출' 항목만 있으면 돼요."></textarea>
               <button class="btn btn-primary" onclick="submitReport()">제출하기</button>
               <div class="parse-warn" id="parseWarn">보고 텍스트를 인식하지 못했어요. "■ 매장명" 다음 줄에 "· 근무일 :" 형식이 있는지 확인해주세요.</div>
               <div class="warn-box" id="dateWarn" style="display:none;"></div>
@@ -146,43 +147,43 @@
             </div>
           </div>
 
-          <div>
-            <div class="card">
-              <h2><span class="dot2"></span>오늘 제출 현황<button class="btn btn-ghost btn-small rf" onclick="loadAggregate()">새로고침</button></h2>
-              <div class="progress" id="progressText">불러오는 중...</div>
-              <div style="max-height:230px;overflow-y:auto;">
-                <ul class="store-list" id="submittedList"></ul>
-                <div id="missingBox" style="margin-top:7px;"></div>
-              </div>
-            </div>
-            <div class="card">
-              <h2><span class="dot2"></span>따이공 취합</h2>
-              <div class="foot-note" style="margin:0 0 8px;">매장 제출과 별개로, 실장님/팀장님이 하루에 한 번만 직접 입력해요.</div>
-              <div class="grid4">
-                <div class="field" style="grid-column:span 2;"><label>따이공 (원)</label><input type="number" id="ex_daigong" value="0"></div>
-                <div class="field"><label>그래피티C 파드 (개)</label><input type="number" id="ex_gcPad" value="0"></div>
-                <div class="field"><label>그래피티C 기기 (개)</label><input type="number" id="ex_gcGigi" value="0"></div>
-                <div class="field"><label>그래피티2 파드 (개)</label><input type="number" id="ex_g2Pad" value="0"></div>
-                <div class="field"><label>그래피티2 기기 (개)</label><input type="number" id="ex_g2Gigi" value="0"></div>
-                <div class="field"><label>롤리팟 액상 (병)</label><input type="number" id="ex_lolipot" value="0"></div>
-                <div class="field"><label>그래피티3 (대)</label><input type="number" id="ex_g3" value="0"></div>
-              </div>
-              <button class="btn btn-ghost" onclick="saveExtra()">저장</button>
-              <div class="ok-msg" id="exSaveMsg">저장됐어요 ✓</div>
+          <div class="card">
+            <h2><span class="dot2"></span>오늘 제출 현황<button class="btn btn-ghost btn-small rf" onclick="loadAggregate()">새로고침</button></h2>
+            <div class="progress" id="progressText">불러오는 중...</div>
+            <div style="min-height:0;">
+              <ul class="store-list" id="submittedList"></ul>
+              <div id="missingBox" style="margin-top:7px;"></div>
             </div>
           </div>
-        </div>
 
-        <div class="card" id="receiptCard" style="display:none;">
-          <h2><span class="dot2"></span>종합 보고 (카톡방 전송용)</h2>
-          <div class="receipt" id="receiptBox"></div>
-          <div class="copy-row">
-            <button class="btn btn-ghost btn-small" onclick="copyReceipt()">복사하기</button>
-            <span class="copy-msg" id="copyMsg">복사됐어요 ✓</span>
+          <div class="card">
+            <h2><span class="dot2"></span>따이공 취합</h2>
+            <div class="foot-note" style="margin:0 0 8px;">매장 제출과 별개로, 실장님/팀장님이 하루에 한 번만 직접 입력해요.</div>
+            <div class="grid4">
+              <div class="field" style="grid-column:span 2;"><label>따이공 (원)</label><input type="number" id="ex_daigong" value="0"></div>
+              <div class="field"><label>그래피티C 파드 (개)</label><input type="number" id="ex_gcPad" value="0"></div>
+              <div class="field"><label>그래피티C 기기 (개)</label><input type="number" id="ex_gcGigi" value="0"></div>
+              <div class="field"><label>그래피티2 파드 (개)</label><input type="number" id="ex_g2Pad" value="0"></div>
+              <div class="field"><label>그래피티2 기기 (개)</label><input type="number" id="ex_g2Gigi" value="0"></div>
+              <div class="field"><label>롤리팟 액상 (병)</label><input type="number" id="ex_lolipot" value="0"></div>
+              <div class="field"><label>그래피티3 (대)</label><input type="number" id="ex_g3" value="0"></div>
+            </div>
+            <button class="btn btn-ghost" onclick="saveExtra()">저장</button>
+            <div class="ok-msg" id="exSaveMsg">저장됐어요 ✓</div>
+          </div>
+
+          <div class="card" id="receiptCard">
+            <h2><span class="dot2"></span>종합 보고 (카톡방 전송용)</h2>
+            <div class="receipt" id="receiptBox" style="flex:1;">날짜와 매장을 선택하고 제출하면 여기에 최종 보고 텍스트가 자동으로 채워져요.</div>
+            <div class="copy-row">
+              <button class="btn btn-ghost btn-small" onclick="copyReceipt()">복사하기</button>
+              <span class="copy-msg" id="copyMsg">복사됐어요 ✓</span>
+            </div>
           </div>
         </div>
         <div class="foot-note" id="lastUpdated" style="margin:0 0 20px;"></div>
       </div>
+
 
       <!-- PAGE 3: NICOTINE -->
       <div id="tab3" class="page">
@@ -553,11 +554,9 @@ async function loadAggregate(){
   const progressEl = document.getElementById('progressText');
   const listEl = document.getElementById('submittedList');
   const missingBox = document.getElementById('missingBox');
-  const receiptCard = document.getElementById('receiptCard');
   progressEl.textContent = '불러오는 중...';
   listEl.innerHTML = '';
   missingBox.innerHTML = '';
-  receiptCard.style.display='none';
   document.getElementById('lastUpdated').textContent = '마지막 갱신: ' + new Date().toLocaleTimeString('ko-KR');
   document.getElementById('stripUpdated').textContent = '갱신: ' + new Date().toLocaleTimeString('ko-KR');
   const extraPromise = loadExtra(date);
@@ -601,10 +600,7 @@ async function loadAggregate(){
         duplicates.map(e=>`<span class="dup-tag">${e.storeName} · ${e._dupCount}회</span>`).join('');
     }
 
-    if(entries.length===0){
-      document.getElementById('stripTotal').textContent = won(0);
-      return;
-    }
+    document.getElementById('stripTotal').textContent = won(0);
 
     const sum = {cash:0,transfer:0,alipay:0,card:0,etc:0,total:0,totalCustomers:0,
       domestic:{count:0,amount:0},japan:{count:0,amount:0},china:{count:0,amount:0},otherForeign:{count:0,amount:0}};
@@ -637,7 +633,6 @@ async function loadAggregate(){
     receipt += `· 그래피티3 : ${ex.g3}대\n`;
 
     document.getElementById('receiptBox').textContent = receipt;
-    receiptCard.style.display='block';
     lastReceipt = receipt;
   }catch(e){
     console.error(e);
