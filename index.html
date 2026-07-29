@@ -62,7 +62,17 @@
   }
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
   .grid4{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
-  .field{margin-bottom:8px;}
+  .prod-label-row{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:3px;min-width:0;}
+  .prod-label-text{font-size:11px;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+  .prod-btns{display:flex;gap:3px;flex:0 0 auto;}
+  .prod-edit-btn,.prod-del-btn{appearance:none;border:1px solid var(--line);background:var(--paper);color:var(--ink-soft);
+    font-size:9.5px;padding:1px 5px;border-radius:5px;cursor:pointer;flex:0 0 auto;}
+  .prod-del-btn{color:var(--bad);border-color:#F0C9C4;}
+  .prod-edit-stack{display:flex;flex-direction:column;gap:4px;width:100%;}
+  .prod-edit-label{width:100%;font-size:11px;padding:3px 5px;border:1px solid var(--yellow);border-radius:5px;box-sizing:border-box;}
+  .prod-edit-row2{display:flex;gap:4px;width:100%;}
+  .prod-edit-unit{flex:1;min-width:0;font-size:11px;padding:3px 5px;border:1px solid var(--yellow);border-radius:5px;box-sizing:border-box;}
+  .field{margin-bottom:8px;min-width:0;}
 
   .btn{appearance:none;border:none;cursor:pointer;font-family:var(--sans);font-weight:700;font-size:13px;padding:10px 16px;border-radius:8px;width:100%;}
   .btn-primary{background:var(--ink);color:var(--yellow);margin-top:5px;}
@@ -159,15 +169,10 @@
           <div class="card">
             <h2><span class="dot2"></span>따이공 취합</h2>
             <div class="foot-note" style="margin:0 0 8px;">매장 제출과 별개로, 실장님/팀장님이 하루에 한 번만 직접 입력해요.</div>
-            <div class="grid4">
-              <div class="field" style="grid-column:span 2;"><label>따이공 (원)</label><input type="number" id="ex_daigong" value="0"></div>
-              <div class="field"><label>그래피티C 파드 (개)</label><input type="number" id="ex_gcPad" value="0"></div>
-              <div class="field"><label>그래피티C 기기 (개)</label><input type="number" id="ex_gcGigi" value="0"></div>
-              <div class="field"><label>그래피티2 파드 (개)</label><input type="number" id="ex_g2Pad" value="0"></div>
-              <div class="field"><label>그래피티2 기기 (개)</label><input type="number" id="ex_g2Gigi" value="0"></div>
-              <div class="field"><label>롤리팟 액상 (병)</label><input type="number" id="ex_lolipot" value="0"></div>
-              <div class="field"><label>그래피티3 (대)</label><input type="number" id="ex_g3" value="0"></div>
-            </div>
+            <div class="field"><label>따이공 (원)</label><input type="number" id="ex_daigong" value="0"></div>
+            <div class="grid4" id="productGrid"></div>
+            <button type="button" class="btn btn-ghost btn-small" style="margin-top:8px;" onclick="addProduct()">+ 제품 추가</button>
+            <div style="height:12px;"></div>
             <button class="btn btn-ghost" onclick="saveExtra()">저장</button>
             <div class="ok-msg" id="exSaveMsg">저장됐어요 ✓</div>
           </div>
@@ -512,41 +517,173 @@ let lastReceipt = null;
 
 function extraKey(date){ return 'extra:'+date; }
 
+function escapeHtml(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+const DEFAULT_PRODUCTS = [
+  {id:'gcPad', label:'그래피티C 파드', unit:'개'},
+  {id:'gcGigi', label:'그래피티C 기기', unit:'개'},
+  {id:'g2Pad', label:'그래피티2 파드', unit:'개'},
+  {id:'g2Gigi', label:'그래피티2 기기', unit:'개'},
+  {id:'lolipot', label:'롤리팟 액상', unit:'병'},
+  {id:'g3', label:'그래피티3', unit:'대'}
+];
+let productList = DEFAULT_PRODUCTS.slice();
+
+async function loadProductConfig(){
+  try{
+    const r = await window.storage.get('config:products', true);
+    productList = r ? JSON.parse(r.value) : DEFAULT_PRODUCTS.slice();
+  }catch(e){
+    productList = DEFAULT_PRODUCTS.slice();
+  }
+}
+
+async function saveProductConfig(){
+  try{ await window.storage.set('config:products', JSON.stringify(productList), true); }
+  catch(e){ console.error(e); }
+}
+
+function productFieldHTML(p){
+  return `<div class="field" data-pid="${p.id}">
+    <div class="prod-label-row">
+      <span class="prod-label-text">${escapeHtml(p.label)} (${escapeHtml(p.unit)})</span>
+      <span class="prod-btns">
+        <button type="button" class="prod-edit-btn" onclick="startEditProduct('${p.id}')">수정</button>
+        <button type="button" class="prod-del-btn" onclick="handleProductDeleteClick(this,'${p.id}')">삭제</button>
+      </span>
+    </div>
+    <input type="number" id="pv_${p.id}" value="0">
+  </div>`;
+}
+
+function adjustProductDensity(){
+  const grid = document.getElementById('productGrid');
+  const n = productList.length;
+  if(n > 10){ grid.style.gridTemplateColumns = 'repeat(3,1fr)'; grid.style.fontSize = '10px'; }
+  else if(n > 6){ grid.style.gridTemplateColumns = 'repeat(3,1fr)'; grid.style.fontSize = ''; }
+  else{ grid.style.gridTemplateColumns = 'repeat(2,1fr)'; grid.style.fontSize = ''; }
+}
+
+function renderProductGrid(){
+  const grid = document.getElementById('productGrid');
+  grid.innerHTML = productList.map(productFieldHTML).join('');
+  adjustProductDensity();
+}
+
+function startEditProduct(id){
+  const p = productList.find(x=>x.id===id);
+  if(!p) return;
+  const fieldEl = document.querySelector(`.field[data-pid="${id}"]`);
+  const wrap = fieldEl.querySelector('.prod-label-row');
+  // 세로로 쌓아서 폭이 좁아도 절대 옆 칸과 겹치지 않게 함
+  wrap.innerHTML = `
+    <div class="prod-edit-stack">
+      <input type="text" class="prod-edit-label" placeholder="품목명" value="${escapeHtml(p.label)}">
+      <div class="prod-edit-row2">
+        <input type="text" class="prod-edit-unit" placeholder="단위(개/병/대)" value="${escapeHtml(p.unit)}">
+        <button type="button" class="prod-edit-btn" onclick="finishEditProduct('${id}')">완료</button>
+        <button type="button" class="prod-del-btn" onclick="handleProductDeleteClick(this,'${id}')">삭제</button>
+      </div>
+    </div>`;
+  const labelInput = wrap.querySelector('.prod-edit-label');
+  labelInput.focus();
+  labelInput.select();
+}
+
+async function finishEditProduct(id){
+  const p = productList.find(x=>x.id===id);
+  if(!p) return;
+  const fieldEl = document.querySelector(`.field[data-pid="${id}"]`);
+  const wrap = fieldEl.querySelector('.prod-label-row');
+  const newLabel = wrap.querySelector('.prod-edit-label').value.trim() || p.label;
+  const newUnit = wrap.querySelector('.prod-edit-unit').value.trim() || p.unit;
+  p.label = newLabel; p.unit = newUnit;
+  await saveProductConfig();
+  wrap.innerHTML = `<span class="prod-label-text">${escapeHtml(p.label)} (${escapeHtml(p.unit)})</span>
+    <span class="prod-btns">
+      <button type="button" class="prod-edit-btn" onclick="startEditProduct('${id}')">수정</button>
+      <button type="button" class="prod-del-btn" onclick="handleProductDeleteClick(this,'${id}')">삭제</button>
+    </span>`;
+  await refreshReceiptLocal();
+}
+
+function handleProductDeleteClick(btn, id){
+  if(btn.dataset.confirm === '1'){
+    deleteProduct(id);
+  } else {
+    btn.dataset.confirm = '1';
+    btn.textContent = '한번더';
+    btn.style.background = 'var(--bad)';
+    btn.style.color = '#fff';
+    btn.style.borderColor = 'var(--bad)';
+    clearTimeout(btn._resetTimer);
+    btn._resetTimer = setTimeout(()=>{
+      btn.dataset.confirm = '';
+      btn.textContent = '삭제';
+      btn.style.background = '';
+      btn.style.color = '';
+      btn.style.borderColor = '';
+    }, 3000);
+  }
+}
+
+async function deleteProduct(id){
+  const idx = productList.findIndex(x=>x.id===id);
+  if(idx === -1) return;
+  productList.splice(idx, 1);
+  await saveProductConfig();
+  renderProductGrid();
+  await refreshReceiptLocal();
+}
+
+
+async function addProduct(){
+  const id = 'custom_' + Date.now();
+  const p = {id, label:'새 품목', unit:'개'};
+  productList.push(p);
+  await saveProductConfig();
+  const grid = document.getElementById('productGrid');
+  grid.insertAdjacentHTML('beforeend', productFieldHTML(p));
+  adjustProductDensity();
+}
+
 async function loadExtra(date){
-  const ids = ['ex_daigong','ex_gcPad','ex_gcGigi','ex_g2Pad','ex_g2Gigi','ex_lolipot','ex_g3'];
+  document.getElementById('ex_daigong').value = 0;
+  productList.forEach(p=>{ const el = document.getElementById('pv_'+p.id); if(el) el.value = 0; });
   try{
     const r = await window.storage.get(extraKey(date), true);
     const d = r ? JSON.parse(r.value) : {};
-    ids.forEach(id=>{ document.getElementById(id).value = d[id] || 0; });
-  }catch(e){
-    ids.forEach(id=>{ document.getElementById(id).value = 0; });
-  }
+    document.getElementById('ex_daigong').value = d.daigong || 0;
+    if(d.products){
+      Object.keys(d.products).forEach(pid=>{
+        const el = document.getElementById('pv_'+pid);
+        if(el) el.value = d.products[pid];
+      });
+    }
+  }catch(e){ /* leave zeros */ }
 }
 
 async function saveExtra(){
   const date = document.getElementById('f_date').value;
-  const ids = ['ex_daigong','ex_gcPad','ex_gcGigi','ex_g2Pad','ex_g2Gigi','ex_lolipot','ex_g3'];
-  const d = {};
-  ids.forEach(id=>{ d[id] = num(document.getElementById(id).value); });
+  const data = getExtraValues();
   try{
-    await window.storage.set(extraKey(date), JSON.stringify(d), true);
+    await window.storage.set(extraKey(date), JSON.stringify(data), true);
     const msg = document.getElementById('exSaveMsg');
     msg.style.display='block';
     setTimeout(()=>msg.style.display='none', 2500);
-    await loadAggregate();
+    await refreshReceiptLocal();
   }catch(e){ console.error(e); }
 }
 
 function getExtraValues(){
-  return {
-    daigong: num(document.getElementById('ex_daigong').value),
-    gcPad: num(document.getElementById('ex_gcPad').value),
-    gcGigi: num(document.getElementById('ex_gcGigi').value),
-    g2Pad: num(document.getElementById('ex_g2Pad').value),
-    g2Gigi: num(document.getElementById('ex_g2Gigi').value),
-    lolipot: num(document.getElementById('ex_lolipot').value),
-    g3: num(document.getElementById('ex_g3').value)
-  };
+  const products = {};
+  productList.forEach(p=>{
+    const el = document.getElementById('pv_'+p.id);
+    products[p.id] = el ? num(el.value) : 0;
+  });
+  return { daigong: num(document.getElementById('ex_daigong').value), products };
 }
 
 async function loadAggregate(){
@@ -611,33 +748,53 @@ async function loadAggregate(){
     });
 
     document.getElementById('stripTotal').textContent = won(sum.total);
+    lastSum = sum;
+    lastSumDate = date;
 
-    const [y,mo,d] = date.split('-');
-    let receipt = '';
-    receipt += `[${y} / ${mo} / ${d}]\n`;
-    receipt += `위베이프 총매출 - ${won(sum.total)}\n`;
-    receipt += `(상세매출)\n`;
-    receipt += `· 내국인 : ${won(sum.domestic.amount)}\n`;
-    receipt += `· 일본유커 : ${won(sum.japan.amount)}\n`;
-    receipt += `· 중국유커 : ${won(sum.china.amount)}\n`;
-    receipt += `· 기타 외국인 : ${won(sum.otherForeign.amount)}\n`;
-
-    const ex = getExtraValues();
-    receipt += `------------------------------------\n`;
-    receipt += `· 따이공 : ${won(ex.daigong)}\n`;
-    receipt += `· 그래피티C 파드 : ${ex.gcPad}개\n`;
-    receipt += `· 그래피티C 기기 : ${ex.gcGigi}개\n`;
-    receipt += `· 그래피티2 파드 : ${ex.g2Pad}개\n`;
-    receipt += `· 그래피티2 기기 : ${ex.g2Gigi}개\n`;
-    receipt += `· 롤리팟 액상 : ${ex.lolipot}병\n`;
-    receipt += `· 그래피티3 : ${ex.g3}대\n`;
-
-    document.getElementById('receiptBox').textContent = receipt;
-    lastReceipt = receipt;
+    document.getElementById('receiptBox').textContent = buildReceiptText(date, sum);
+    lastReceipt = document.getElementById('receiptBox').textContent;
   }catch(e){
     console.error(e);
     progressEl.textContent = '불러오기 실패';
   }
+}
+
+let lastSum = null;
+let lastSumDate = null;
+
+function buildReceiptText(date, sum){
+  const [y,mo,d] = date.split('-');
+  let receipt = '';
+  receipt += `[${y} / ${mo} / ${d}]\n`;
+  receipt += `위베이프 총매출 - ${won(sum.total)}\n`;
+  receipt += `(상세매출)\n`;
+  receipt += `· 내국인 : ${won(sum.domestic.amount)}\n`;
+  receipt += `· 일본유커 : ${won(sum.japan.amount)}\n`;
+  receipt += `· 중국유커 : ${won(sum.china.amount)}\n`;
+  receipt += `· 기타 외국인 : ${won(sum.otherForeign.amount)}\n`;
+
+  const ex = getExtraValues();
+  receipt += `------------------------------------\n`;
+  receipt += `· 따이공 : ${won(ex.daigong)}\n`;
+  productList.forEach(p=>{
+    const v = ex.products[p.id] || 0;
+    receipt += `· ${p.label} : ${v}${p.unit}\n`;
+  });
+  return receipt;
+}
+
+// 품목 이름 변경/삭제/따이공 저장처럼 "매장 데이터는 그대로고 표시 항목만 바뀌는" 경우,
+// 서버에서 매장 데이터를 다시 불러올 필요 없이 방금 계산해둔 합계로 즉시 영수증만 다시 그림 (네트워크 왕복 없음, 즉시 반영)
+function refreshReceiptLocal(){
+  const date = document.getElementById('f_date').value || todayStr;
+  if(!lastSum || lastSumDate !== date){
+    // 아직 한 번도 안 불러왔거나 날짜가 바뀐 경우에만 전체 새로고침
+    return loadAggregate();
+  }
+  const receipt = buildReceiptText(date, lastSum);
+  document.getElementById('receiptBox').textContent = receipt;
+  lastReceipt = receipt;
+  return Promise.resolve();
 }
 
 function copyReceipt(){
@@ -762,7 +919,12 @@ function copyNicotine(){
 }
 
 document.getElementById('f_date').addEventListener('change', loadAggregate);
-loadAggregate();
+
+(async function init(){
+  await loadProductConfig();
+  renderProductGrid();
+  await loadAggregate();
+})();
 </script>
 </body>
 </html>
