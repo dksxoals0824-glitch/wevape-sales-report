@@ -271,6 +271,17 @@
 const STORE_NAMES = ['연수점','논현점','계산점','구월길병원점','구월로데오점','검단점','중동점','상동점','인천공항점']
   .sort((a,b)=>a.localeCompare(b,'ko'));
 
+// 매장에서 줄여서 쓰는 이름들을 정식 매장명으로 변환
+const STORE_ALIASES = {
+  '구월점': '구월길병원점',
+  '로데오점': '구월로데오점'
+};
+function resolveStoreName(name){
+  if(!name) return name;
+  const trimmed = name.trim();
+  return STORE_ALIASES[trimmed] || trimmed;
+}
+
 (function(){
   const sel = document.getElementById('f_store');
   STORE_NAMES.forEach(n=>{
@@ -411,7 +422,7 @@ async function submitReport(){
   const dateField = document.getElementById('f_date');
   const storeField = document.getElementById('f_store');
   const date = dateField.value || todayStr;
-  const store = (storeField.value.trim()) || parsed.storeName;
+  const store = (storeField.value.trim()) || resolveStoreName(parsed.storeName);
 
   if(parsed.date && parsed.date !== date){
     dateWarn.innerHTML = `⚠ 날짜가 서로 달라요. 기본 정보의 날짜는 <b>${date}</b>인데, 붙여넣은 텍스트의 근무일은 <b>${parsed.date}</b>로 적혀 있어요. 저장하지 않았어요 — 날짜를 맞춘 후 다시 제출해주세요.`;
