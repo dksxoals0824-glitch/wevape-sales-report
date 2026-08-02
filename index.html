@@ -189,7 +189,7 @@
 
         <div class="card">
           <h2><span class="dot2"></span>월매출<button class="btn btn-ghost btn-small rf" onclick="loadMonthlyTotal()">새로고침</button></h2>
-          <div class="foot-note" style="margin:0 0 8px;">전 매장(9곳)이 모두 제출을 완료한 날짜만 그 날의 총매출이 월 합계에 더해져요. 일부만 제출된 날은 아직 집계에서 빠집니다. (최근 3개월치만 표시돼요)</div>
+          <div class="foot-note" style="margin:0 0 8px;">위 날짜가 속한 달의 총매출이에요. 전 매장(9곳)이 모두 제출을 완료한 날짜만 더해져요.</div>
           <div id="monthlyBox"><p class="empty">불러오는 중...</p></div>
         </div>
 
@@ -942,17 +942,14 @@ async function loadMonthlyTotal(){
   const box = document.getElementById('monthlyBox');
   box.innerHTML = '<p class="empty">불러오는 중...</p>';
   try{
-    // 최근 3개월(이번 달 포함)만 조회해서, 데이터가 몇 달씩 쌓여도 항상 빠르게 유지되도록 범위를 제한함
+    // 선택된 날짜가 속한 "그 달"만 조회 (다른 달은 안 건드려서 항상 빠름)
     const base = new Date(document.getElementById('f_date').value || todayStr);
-    const monthPrefixes = [];
-    for(let i=0;i<3;i++){
-      const dt = new Date(base.getFullYear(), base.getMonth()-i, 1);
-      const ym = dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0');
-      monthPrefixes.push('report:'+ym);
-    }
+    const y = base.getFullYear();
+    const m0 = base.getMonth();
+    const ym = y+'-'+String(m0+1).padStart(2,'0');
 
-    const listResults = await Promise.all(monthPrefixes.map(p => window.storage.list(p, true)));
-    const keys = [...new Set(listResults.flatMap(r => r ? r.keys : []))];
+    const listRes = await window.storage.list('report:'+ym, true);
+    const keys = listRes ? listRes.keys : [];
 
     const results = await Promise.all(keys.map(async k=>{
       const parts = k.split(':');
@@ -978,45 +975,19 @@ async function loadMonthlyTotal(){
       }
     });
 
-    // 9개 매장이 전부 제출된 날짜만 인정
+    // 9개 매장이 전부 제출된 날짜만 인정해서 합산
     const completeDates = Object.keys(byDate).filter(dt => byDate[dt].stores.size >= STORE_NAMES.length);
-    const incompleteCount = Object.keys(byDate).length - completeDates.length;
+    const monthTotal = completeDates.reduce((sum, dt) => sum + byDate[dt].total, 0);
+    const mLabel = m0+1;
 
-    if(completeDates.length === 0){
-      box.innerHTML = `<p class="empty">전 매장이 다 제출된 날짜가 아직 없어요.${incompleteCount>0?` (진행 중인 날짜 ${incompleteCount}일 제외됨)`:''}</p>`;
-      return;
-    }
-
-    const byMonth = {};
-    completeDates.forEach(dt=>{
-      const ym = dt.slice(0,7);
-      if(!byMonth[ym]) byMonth[ym] = {total:0, days:0};
-      byMonth[ym].total += byDate[dt].total;
-      byMonth[ym].days += 1;
-    });
-    const months = Object.keys(byMonth).sort().reverse();
-
-    let html = '';
-    months.forEach(ym=>{
-      const m = parseInt(ym.split('-')[1]);
-      html += `<div class="month-total">${m}월 총매출 : ${won(byMonth[ym].total)} <span style="font-weight:400;color:var(--ink-soft);font-size:12px;">(${byMonth[ym].days}일 완료)</span></div>`;
-    });
-    if(incompleteCount>0){
-      html += `<div class="foot-note" style="margin-top:6px;">※ 아직 전 매장 제출이 안 끝난 날짜 ${incompleteCount}일은 집계에서 제외됨</div>`;
-    }
-    html += '<table style="margin-top:10px;"><tr><th>날짜</th><th style="text-align:right;">일 총매출</th></tr>';
-    completeDates.sort().reverse().slice(0,31).forEach(dt=>{
-      html += `<tr><td>${dt}</td><td class="num">${won(byDate[dt].total)}</td></tr>`;
-    });
-    html += '</table>';
-    box.innerHTML = html;
+    box.innerHTML = `<div class="month-total">${mLabel}월 총매출 : ${won(monthTotal)} <span style="font-weight:400;color:var(--ink-soft);font-size:12px;">(${completeDates.length}일 완료)</span></div>`;
   }catch(e){
     box.innerHTML = '<p class="empty">불러오기에 실패했어요.</p>';
     console.error(e);
   }
 }
 
-document.getElementById('f_date').addEventListener('change', loadAggregate);
+document.getElementById('f_date').addEventListener('change', ()=>{ loadAggregate(); loadMonthlyTotal(); });
 
 (async function init(){
   await loadProductConfig();
